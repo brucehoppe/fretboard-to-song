@@ -57,9 +57,13 @@ function friendly(e: z.ZodError) {
 
 export async function POST(req: Request) {
   try {
+    // Check the declared size first so we never read an oversized body.
+    if (Number(req.headers.get('content-length') ?? 0) > MAX_BODY) return json({ error: 'Entry too large' }, 413);
+    // Always read the body before replying. Returning early with an unread body on a
+    // kept-alive connection crashed the local Workers runtime (found by the e2e tests).
+    const raw = await req.text();
     const origin = req.headers.get('origin');
     if (origin && new URL(origin).host !== new URL(req.url).host) return json({ error: 'Invalid origin' }, 403);
-    const raw = await req.text();
     if (raw.length > MAX_BODY) return json({ error: 'Entry too large' }, 413);
     const body = JSON.parse(raw) as { type?: string; data?: unknown };
     const db = database();

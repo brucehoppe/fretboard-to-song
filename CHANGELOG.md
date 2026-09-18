@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.3.0 — test suite
+
+### Test suite
+- Vitest with three projects (unit, API, components) plus Playwright end-to-end tests: 344 tests in all. Every dropdown option, switch, button and field in the app is exercised.
+- The API tests run the real route against SQLite built from the real migrations. The component tests record Web Audio calls, so they check which pitches actually sound.
+- Coverage thresholds are enforced in CI (currently ~98% statements, ~96% branches).
+- GitHub Actions CI runs typecheck, lint, coverage, build and e2e on every push and pull request.
+
+### Bugs found by the new tests
+- **Preferences didn't sync across browser tabs.** The stored-settings hook's in-memory mirror took priority over `localStorage`, so a change in another tab was ignored. Memory is now used only when storage is blocked.
+- **A rejected cross-origin POST could crash the local Workers runtime.** The 403 was returned without reading the request body, and the next request on the same kept-alive connection took down `wrangler dev`. The body is now read first. Declared oversize bodies are still refused unread.
+
+
 ## 0.2.0 — review and refactor
 
 ### Bugs fixed

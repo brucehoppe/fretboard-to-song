@@ -12,8 +12,9 @@ const listeners = new Set<() => void>();
 const PREFIX = 'fts:';
 
 function read(key: string) {
-  if (memory.has(key)) return memory.get(key)!;
-  try { return localStorage.getItem(PREFIX + key); } catch { return null; }
+  // localStorage is the source of truth (so other tabs stay in sync);
+  // memory is only used when storage is blocked.
+  try { return localStorage.getItem(PREFIX + key); } catch { return memory.get(key) ?? null; }
 }
 function subscribe(onChange: () => void) {
   listeners.add(onChange);
@@ -29,8 +30,7 @@ export function useStoredState<T>(key: string, initial: T, valid: (v: unknown) =
   }
   const setValue = useCallback((next: T) => {
     const text = JSON.stringify(next);
-    memory.set(key, text);
-    try { localStorage.setItem(PREFIX + key, text); } catch { /* memory only */ }
+    try { localStorage.setItem(PREFIX + key, text); } catch { memory.set(key, text); }
     listeners.forEach(l => l());
   }, [key]);
   return [value, setValue] as const;

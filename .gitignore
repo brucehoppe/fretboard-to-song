@@ -46,3 +46,8 @@ next-env.d.ts
 /work/
 
 *.tsbuildinfo
+
+# tests
+/coverage/
+/playwright-report/
+/test-results/

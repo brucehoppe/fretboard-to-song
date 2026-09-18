@@ -30,13 +30,23 @@ pnpm dev        # dev server with HMR (http://localhost:5173)
 pnpm start      # or: run the built Worker locally
 ```
 
-Checks:
+## Testing
 
-```sh
-pnpm test        # music-theory unit tests (node:test, no extra deps)
-pnpm typecheck
-pnpm lint
-```
+344 automated tests across four layers (333 Vitest + 11 Playwright flows). CI runs all of them on every push (`.github/workflows/ci.yml`).
+
+| Command | What it covers |
+|---|---|
+| `pnpm test:unit` | Music theory, exhaustively: every key × box × string × fret 0–24, blue-note placement, every Lick Lab move × ending × key × 22/24 frets, tab rendering, quiz pools, streaks. Also the API client. |
+| `pnpm test:api` | The real `/api/practice` route against SQLite built from the real `drizzle/` migrations: every action, every validation rule, revision conflicts, deletes, origin/size checks, SQL-injection safety. |
+| `pnpm test:components` | Every control in jsdom with the real components: each dropdown option, switch, button and field in all three tabs; audio verified by recording the pitches scheduled. Includes whole-app tests where `fetch` hits the real API + SQLite (load errors, retry, reload persistence, conflicts, navigation). |
+| `pnpm test:e2e` | Real Chromium (desktop and a Pixel 7) against the built Worker with a fresh local D1: every key/box/range/guitar, all exercises, a full quiz round, metronome timing, every lick move, the song workflow, a two-tab conflict, and no sideways scrolling on mobile. Requires `pnpm build` first. |
+| `pnpm test` | Unit + API + components |
+| `pnpm test:coverage` | Same, with coverage thresholds enforced (currently ~98% statements, ~96% branches) |
+| `pnpm test:all` | Typecheck, lint, coverage, build, e2e — what CI runs |
+
+First-time e2e setup: `pnpm exec playwright install chromium`.
+
+Test helpers live in `tests/helpers/`: a D1 fake on Node's built-in `node:sqlite`, a recording Web Audio fake, and a Radix-select driver for Testing Library.
 
 Hosting/starter details (Sites profiles, auth headers, D1 bindings) are in [docs/STARTER.md](docs/STARTER.md).
 
@@ -45,7 +55,7 @@ Hosting/starter details (Sites profiles, auth headers, D1 bindings) are in [docs
 | Path | Purpose |
 |---|---|
 | `lib/music.ts` | Pure music theory: pitches, box shapes, blue note, phrase → tab/intervals, lick lab, quiz, practice stats |
-| `tests/music.test.ts` | Unit tests for the above (box coverage in all keys, lick correctness, streaks) |
+| `tests/` | `unit/`, `api/`, `components/`, `e2e/` and shared `helpers/` (see Testing) |
 | `app/page.tsx` | App shell: data loading, server writes, tab routing |
 | `components/app/` | `journey-tab`, `fretboard`, `note-quiz`, `metronome-panel`, `licks-tab`, `lick-lab`, `songs-tab`, shared `fields` |
 | `hooks/` | `use-audio` (synth, phrase playback, metronome), `use-fretboard-view` (remembered view settings), `use-stored-state`, `use-unsaved-warning`, `use-webmcp` |
