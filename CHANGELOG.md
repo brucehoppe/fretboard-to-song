@@ -10,6 +10,13 @@
 - Box tips name their root strings from the shape data rather than by hand, and a test
   checks them in every key and register. (Box 2's roots are on the D and B strings and
   Box 3's on the A and B strings — the practice desk's hand-written tips had these wrong.)
+- **Performance.** The metronome's beat lived in page-level React state, so every beat
+  re-rendered the whole app (all three tabs, ~600 note buttons). Beats are now published to
+  the beat lights only: script time while the metronome runs dropped ~85% (185 → 28 ms over
+  4 s at 240 BPM, 4× CPU throttle). Fretboards are memoised and skip re-rendering unless
+  something they draw changes. Later note taps respond in ~16 ms; the first tap (~145 ms at
+  4× throttle) is the browser creating its audio engine, kept lazy so no audio thread runs
+  for visitors who never play a note.
 
 ## 0.4.1 — dependency security updates
 

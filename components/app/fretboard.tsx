@@ -1,4 +1,5 @@
 'use client';
+import { memo } from 'react';
 import { DEGREES, INLAYS, NOTES, STRING_NAMES, TUNING, degree, inPosition, isScaleNote, noteAt, type QuizTarget } from '@/lib/music';
 
 export type FretboardProps = {
@@ -10,7 +11,7 @@ export type FretboardProps = {
   compact?: boolean;
 };
 
-export function Fretboard({ root, box, frets, blues, intervals, hidden, connect, pathString, sounding, onPlay, quiz, selection, compact }: FretboardProps) {
+function FretboardView({ root, box, frets, blues, intervals, hidden, connect, pathString, sounding, onPlay, quiz, selection, compact }: FretboardProps) {
   const boxNum = box === 'all' ? -1 : +box;
   return (
     <div className="board-scroll" tabIndex={0} aria-label="Scroll fretboard horizontally">
@@ -54,3 +55,22 @@ export function Fretboard({ root, box, frets, blues, intervals, hidden, connect,
     </div>
   );
 }
+
+const sameList = (a?: number[], b?: number[]) => a === b || (!!a && !!b && a.length === b.length && a.every((x, i) => x === b[i]));
+/** A tapped note only matters to a board that has that fret. */
+const soundsHere = (sounding: string, frets: number[]) => !!sounding && frets.includes(+sounding.split('-')[1]);
+
+/**
+ * Up to seven boards share the Journey tab, so each one re-renders only when something it
+ * draws has changed: fret lists compare by value, and a highlighted note on another part
+ * of the neck is ignored.
+ */
+export const Fretboard = memo(FretboardView, (a, b) => {
+  const keys = new Set([...Object.keys(a), ...Object.keys(b)]) as Set<keyof FretboardProps>;
+  for (const k of keys) {
+    if (k === 'frets' || k === 'selection') { if (!sameList(a[k], b[k])) return false; }
+    else if (k === 'sounding') { if (a.sounding !== b.sounding && (soundsHere(a.sounding, b.frets) || soundsHere(b.sounding, b.frets))) return false; }
+    else if (a[k] !== b[k]) return false;
+  }
+  return true;
+});

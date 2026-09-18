@@ -1,6 +1,6 @@
 import { act, renderHook } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { useAudio, useMetronome } from '@/hooks/use-audio';
+import { useAudio, useBeat, useMetronome } from '@/hooks/use-audio';
 import { TUNING, buildLickIdea, midiAt, LICK_MOVES, type LickMove } from '@/lib/music';
 import { audio, hz, near } from '../helpers/fake-audio';
 
@@ -71,7 +71,7 @@ describe('useAudio', () => {
 describe('useMetronome', () => {
   beforeEach(() => vi.useFakeTimers());
   afterEach(() => vi.useRealTimers());
-  const setup = () => renderHook(() => { const a = useAudio(); return useMetronome(a); });
+  const setup = () => renderHook(() => { const a = useAudio(); const m = useMetronome(a); return { ...m, beat: useBeat(m) }; });
   const clicks = () => audio().tones.filter(t => t.type === 'sine');
 
   it('defaults to 75 BPM, stopped', () => {
@@ -100,6 +100,22 @@ describe('useMetronome', () => {
     expect(result.current.beat).toBe(0);
     act(() => result.current.setPlaying(false));
     expect(result.current.beat).toBe(-1);
+  });
+  it('beats re-render only useBeat subscribers, not everything holding the metronome', () => {
+    let holderRenders = 0;
+    const { result } = renderHook(() => { holderRenders++; const a = useAudio(); return useMetronome(a); });
+    const beats = renderHook(() => useBeat(result.current));
+    act(() => result.current.start(240));
+    const afterStart = holderRenders;
+    const seen = new Set<number>();
+    for (let i = 0; i < 40; i++) { act(() => { audio().currentTime += 0.05; vi.advanceTimersByTime(25); }); seen.add(beats.result.current); }
+    expect([...seen].filter(b => b >= 0).length).toBeGreaterThanOrEqual(3); // the lights did move
+    expect(holderRenders).toBe(afterStart);                                 // the holder never re-rendered
+  });
+  it('keeps a stable identity while nothing changes', () => {
+    const { result, rerender } = renderHook(() => { const a = useAudio(); return useMetronome(a); });
+    const first = result.current; rerender();
+    expect(result.current).toBe(first);
   });
   it('stops scheduling after stop', () => {
     const { result } = setup();

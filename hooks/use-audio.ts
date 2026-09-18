@@ -1,5 +1,5 @@
 'use client';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { midiAt, phraseGroups, type PhraseNote } from '@/lib/music';
 
 const hz = (midi: number) => 440 * 2 ** ((midi - 69) / 12);
@@ -85,8 +85,14 @@ export type Audio = ReturnType<typeof useAudio>;
 export function useMetronome(audio: Audio) {
   const [bpm, setBpmState] = useState(75);
   const [playing, setPlaying] = useState(false);
-  const [beat, setBeat] = useState(-1);
   const taps = useRef<number[]>([]);
+  // The beat is published outside React state: it changes several times a second, and as
+  // state it re-rendered every component holding the metronome. Only useBeat() listens.
+  const beat = useRef(-1);
+  const listeners = useRef(new Set<() => void>());
+  const setBeat = useCallback((n: number) => { beat.current = n; listeners.current.forEach(l => l()); }, []);
+  const subscribeBeat = useCallback((l: () => void) => { listeners.current.add(l); return () => { listeners.current.delete(l); }; }, []);
+  const getBeat = useCallback(() => beat.current, []);
 
   const setBpm = useCallback((value: number) => setBpmState(Math.max(30, Math.min(240, Math.round(value)))), []);
 
@@ -108,10 +114,10 @@ export function useMetronome(audio: Audio) {
     const stopWhenHidden = () => { if (document.hidden) setPlaying(false); };
     document.addEventListener('visibilitychange', stopWhenHidden);
     return () => {
-      clearInterval(timer); visuals.forEach(clearTimeout);
+      clearInterval(timer); visuals.forEach(clearTimeout); setBeat(-1);
       document.removeEventListener('visibilitychange', stopWhenHidden);
     };
-  }, [playing, bpm, audio]);
+  }, [playing, bpm, audio, setBeat]);
 
   /** Tap tempo: average of the last few intervals; resets after a 2 s pause. */
   const tap = useCallback(() => {
@@ -125,6 +131,12 @@ export function useMetronome(audio: Audio) {
 
   const start = useCallback((at?: number) => { if (at) setBpm(at); audio.ctx(); setPlaying(true); }, [audio, setBpm]);
 
-  return { bpm, setBpm, playing, setPlaying, start, beat: playing ? beat : -1, tap };
+  return useMemo(() => ({ bpm, setBpm, playing, setPlaying, start, tap, subscribeBeat, getBeat }),
+    [bpm, setBpm, playing, start, tap, subscribeBeat, getBeat]);
 }
 export type Metronome = ReturnType<typeof useMetronome>;
+
+/** The current beat (0–3), or -1 when stopped; re-renders only the component that calls it. */
+export function useBeat(m: Pick<Metronome, 'subscribeBeat' | 'getBeat'>) {
+  return useSyncExternalStore(m.subscribeBeat, m.getBeat, () => -1);
+}

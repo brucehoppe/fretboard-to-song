@@ -2,7 +2,7 @@
 import { Minus, Pause, Play, Plus, Volume2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { NumberField } from '@/components/app/fields';
-import type { Metronome } from '@/hooks/use-audio';
+import { useBeat, type Metronome } from '@/hooks/use-audio';
 
 export function MetronomePanel({ m, compact }: { m: Metronome; compact?: boolean }) {
   return (
@@ -18,10 +18,15 @@ export function MetronomePanel({ m, compact }: { m: Metronome; compact?: boolean
         </Button>
       </div>
       <div className="beat-row">
-        <div className="beats" aria-hidden="true">{[0, 1, 2, 3].map(i => <i key={i} className={(m.beat === i ? 'on ' : '') + (i === 0 ? 'accent' : '')} />)}</div>
+        <BeatLights m={m} />
         <Button variant="outline" size="sm" onClick={m.tap}>Tap tempo</Button>
       </div>
       {!compact && <p>Four beats, accent on the first. Tap along with a recording to find its tempo.</p>}
     </section>
   );
+}
+
+function BeatLights({ m }: { m: Metronome }) {
+  const beat = useBeat(m);
+  return <div className="beats" aria-hidden="true">{[0, 1, 2, 3].map(i => <i key={i} className={(beat === i ? 'on ' : '') + (i === 0 ? 'accent' : '')} />)}</div>;
 }
