@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.4.1 — dependency security updates
+
+- Patched every open Dependabot alert (js-yaml, browserslist, baseline-browser-mapping,
+  brace-expansion, @babel/core, esbuild, fflate). All are transitive build/dev tooling;
+  they're forced to patched versions with range-scoped `overrides` in `pnpm-workspace.yaml`
+  that become no-ops once the parent packages catch up.
+- React and React DOM 19.3.0 to match `react-server-dom-webpack` 19.3, and
+  `@cloudflare/workers-types` v5 for the newer Wrangler; no unmet peer dependencies remain.
+- CI actions updated (checkout v7, setup-node v7, upload-artifact v7, pnpm/action-setup v6),
+  still SHA-pinned.
+
 ## 0.4.0 — security hardening
 
 - **Passphrase sign-in.** `/api/practice` (read and write, including delete) previously had
