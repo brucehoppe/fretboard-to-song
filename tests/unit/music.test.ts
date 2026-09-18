@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
   BLUE_NOTE, DEGREES, LICK_MOVES, MINOR, NOTES, STRING_NAMES, TUNING,
-  blueNoteInBox, buildLickIdea, degree, inBox, inPosition, intervalPath, isScaleNote, lickShift, midiAt,
+  blueNoteInBox, boxPlacement, boxRootStrings, boxTip, boxesLowToHigh, buildLickIdea, degree, inBox, inPosition, intervalPath, isScaleNote, lickShift, midiAt,
   noteAt, phraseGroups, pickQuizTarget, practiceStats, quizPool, rangeFor, ratingFor, renderTab,
-  scaleDegrees, scaleNotes, sectionReady, visibleFrets, type LickMove, type PhraseNote, type Song,
+  scaleDegrees, scaleNotes, sectionReady, visibleFrets, type LickMove, type Register, type PhraseNote, type Song,
 } from '@/lib/music';
 
 const KEYS = NOTES.map((_, i) => i);
@@ -101,6 +101,66 @@ describe('five box shapes (all 12 keys × 6 strings × frets 0–24)', () => {
     // Box 5's fret-12 notes are the open strings an octave up, so fret 0 is in box 5 too.
     expect(shape(4)).toEqual([[0, 10, 12], [0, 10, 12], [0, 9, 12], [0, 9, 12], [0, 10, 12], [0, 10, 12]]);
   });
+});
+
+describe('five boxes as placed shapes (every key × register × 22/24 frets)', () => {
+  const REGISTERS: Register[] = ['down', 'standard', 'up'];
+  const each = (fn: (root: number, reg: Register, max: number) => void) =>
+    KEYS.forEach(root => REGISTERS.forEach(reg => [22, 24].forEach(max => fn(root, reg, max))));
+
+  it('every placement fits on the neck and holds exactly its 12 box notes', () => each((root, reg, max) => {
+    for (const b of BOXES) {
+      const { lo, hi } = boxPlacement(root, b, reg, max);
+      expect(lo).toBeGreaterThanOrEqual(0);
+      expect(hi).toBeLessThanOrEqual(max);
+      let notes = 0;
+      for (const s of STRINGS) for (let f = lo; f <= hi; f++) if (isScaleNote(s, f, root, false) && inBox(s, f, root, b)) notes++;
+      expect(notes).toBe(12);
+    }
+  }));
+  it('standard puts Box 1 on the low-E root between frets 1 and 12', () => KEYS.forEach(root => {
+    const { lo } = boxPlacement(root, 0, 'standard', 24);
+    expect(lo).toBeGreaterThanOrEqual(1);
+    expect(lo).toBeLessThanOrEqual(12);
+    expect(noteAt(5, lo)).toBe(root);
+  }));
+  it('octave down/up go as far as the neck allows, and "moved" means off the standard position', () => each((root, reg, max) => {
+    for (const b of BOXES) {
+      const p = boxPlacement(root, b, reg, max), std = boxPlacement(root, b, 'standard', max);
+      if (reg === 'down') expect(p.lo - 12).toBeLessThan(0);
+      if (reg === 'up') expect(p.hi + 12).toBeGreaterThan(max);
+      expect(p.moved).toBe(p.lo !== std.lo);
+      expect(p.hi - p.lo).toBe(std.hi - std.lo);
+    }
+  }));
+  it('boxesLowToHigh returns all five, sorted by position on the neck', () => each((root, reg, max) => {
+    const laid = boxesLowToHigh(root, reg, max);
+    expect(laid.map(p => p.box).sort()).toEqual(BOXES);
+    laid.slice(1).forEach((p, i) => expect(p.lo).toBeGreaterThanOrEqual(laid[i].lo));
+  }));
+  it('known placements: E minor', () => {
+    expect(boxesLowToHigh(4, 'standard', 24).map(p => [p.box, p.lo, p.hi])).toEqual([[0, 12, 15], [1, 14, 17], [2, 16, 20], [3, 19, 22], [4, 21, 24]]);
+    // A 22-fret neck has no room for Box 5 at 21–24, so it drops an octave and leads the order.
+    expect(boxesLowToHigh(4, 'standard', 22).map(p => p.box)).toEqual([4, 0, 1, 2, 3]);
+    expect(boxPlacement(4, 0, 'down', 24)).toEqual({ box: 0, lo: 0, hi: 3, moved: true });
+    expect(boxPlacement(4, 0, 'up', 24)).toEqual({ box: 0, lo: 12, hi: 15, moved: false });
+  });
+  it('root strings are derived from the shapes (Box 2 is D and B; Box 3 is A and B)', () => {
+    const named = (b: number) => boxRootStrings(b).map(s => STRING_NAMES[s]);
+    expect(BOXES.map(named)).toEqual([['E', 'D', 'e'], ['D', 'B'], ['A', 'B'], ['A', 'G'], ['E', 'G', 'e']]);
+    expect(boxTip(0)).toMatch(/Roots on the low E, D and high e strings\.$/);
+    expect(boxTip(1)).toMatch(/Roots on the D and B strings\.$/);
+  });
+  it('root strings hold in every key and every register', () => each((root, reg, max) => {
+    for (const b of BOXES) {
+      const { lo, hi } = boxPlacement(root, b, reg, max);
+      const withRoot = STRINGS.filter(s => {
+        for (let f = lo; f <= hi; f++) if (inBox(s, f, root, b) && degree(s, f, root) === 0) return true;
+        return false;
+      });
+      expect(withRoot).toEqual([...boxRootStrings(b)].sort((x, y) => x - y));
+    }
+  }));
 });
 
 describe('blue note placement', () => {

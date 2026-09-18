@@ -3,7 +3,7 @@
 [![CI](https://github.com/brucehoppe/fretboard-to-song/actions/workflows/ci.yml/badge.svg)](https://github.com/brucehoppe/fretboard-to-song/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 ![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178c6)
-![Tests](https://img.shields.io/badge/tests-364-brightgreen)
+![Tests](https://img.shields.io/badge/tests-379-brightgreen)
 
 A guitar practice app for getting out of the "box 1 rut": learn the minor pentatonic across the whole neck, turn it into licks you remember, and finish complete songs.
 
@@ -15,7 +15,7 @@ A guitar practice app for getting out of the "box 1 rut": learn the minor pentat
 - **One source of truth for each phrase.** Tab, interval labels and audio are all generated from a single note list, so they can't drift apart. (An earlier version labelled four of six licks incorrectly for exactly that reason.)
 - **Web Audio synthesis with no samples.** Bends and slides are pitch automation on one oscillator, hammer-ons step the pitch, and the metronome uses a look-ahead scheduler so it stays in time when the main thread is busy.
 - **Safe concurrent edits.** Every record carries a revision number. A save from a stale browser tab is refused with a clear message, and your unsaved text is kept.
-- **Four layers of tests (344 in total).**
+- **Four layers of tests (379 in total).**
   - Unit tests for the theory.
   - API tests against real SQLite built from the real migrations.
   - Component tests that click every control and record which pitches actually sound.
@@ -35,6 +35,8 @@ A guitar practice app for getting out of the "box 1 rut": learn the minor pentat
 ## What it does
 
 **Fretboard Journey** — Interactive neck (22 or 24 frets) for all 12 minor keys and the five box shapes. Toggle note names or intervals, the ♭5 blue note, and the neighbouring box. Tap any note to hear it. Six guided exercises (self-assessed) and a scored **Note quiz**: a `?` appears on the neck and you name it, ten per round, with results logged to your history. A metronome with tap tempo and a practice streak sit alongside.
+
+**The five boxes** — Below the practice panels, select any combination of Box 1–5 (by button or by clicking a card) to practise moving between them. A whole-neck map lights up just the selected boxes, in every octave, and dims everything else. Five cards, laid out low to high on the neck, each show the shape's frets, a playable diagram, and a tip naming the strings that hold its roots — computed from the shape, so it's right in every key. The section has its own key picker, shared with the main fretboard, and an Octave down / Standard / Octave up register that moves each box as far as the neck allows (flagging any shape that has no room, and noting when the boxes no longer run 1–5 from low to high).
 
 **Lick Notebook** — The Lick Development Lab generates six starter phrase types (question/answer, bend, slide, legato, descending run, motif) in any key. Tab, interval labels and audio are all generated from one note list, so they always agree. Playback includes rhythm, real pitch bends and slides. "Change the ending" swaps the final note, not just the advice. Save any phrase to your notebook with key, box, technique, tab, notes, status and a linked song; search and filter by status.
 
@@ -83,7 +85,7 @@ generate once, e.g. `openssl rand -base64 32`. Rotating it invalidates all exist
 
 ## Testing
 
-364 automated tests across four layers (351 Vitest + 13 Playwright flows). CI runs all of them on every push (`.github/workflows/ci.yml`).
+379 automated tests across four layers (365 Vitest + 14 Playwright flows). CI runs all of them on every push (`.github/workflows/ci.yml`).
 
 | Command | What it covers |
 |---|---|
@@ -108,7 +110,7 @@ Hosting/starter details (Sites profiles, auth headers, D1 bindings) are in [docs
 | `lib/music.ts` | Pure music theory: pitches, box shapes, blue note, phrase → tab/intervals, lick lab, quiz, practice stats |
 | `tests/` | `unit/`, `api/`, `components/`, `e2e/` and shared `helpers/` (see Testing) |
 | `app/page.tsx` | App shell: data loading, server writes, tab routing |
-| `components/app/` | `journey-tab`, `fretboard`, `note-quiz`, `metronome-panel`, `licks-tab`, `lick-lab`, `songs-tab`, `sign-in-gate`, shared `fields` |
+| `components/app/` | `journey-tab`, `fretboard`, `five-boxes`, `note-quiz`, `metronome-panel`, `licks-tab`, `lick-lab`, `songs-tab`, `sign-in-gate`, shared `fields` |
 | `hooks/` | `use-audio` (synth, phrase playback, metronome), `use-fretboard-view` (remembered view settings), `use-stored-state`, `use-unsaved-warning`, `use-webmcp` |
 | `lib/api.ts` | Client for `/api/practice` and `/api/auth` |
 | `lib/session.ts` | Signed session cookie (HMAC-SHA256) for the passphrase gate |

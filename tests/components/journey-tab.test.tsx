@@ -13,7 +13,7 @@ function Harness({ sessions = [], onLog = vi.fn(async () => {}), loaded = true, 
 }
 const board = () => screen.getByRole('region', { name: 'Interactive guitar fretboard' });
 const caption = () => document.querySelector('.board-caption')!.textContent!;
-const fretNumbers = () => [...document.querySelectorAll('.fret-number')].map(e => +e.textContent!);
+const fretNumbers = () => [...board().querySelectorAll('.fret-number')].map(e => +e.textContent!);
 const noteButtons = () => within(board()).queryAllByRole('button').filter(b => b.classList.contains('note'));
 const toggle = (name: string) => screen.getByRole('switch', { name });
 
@@ -228,7 +228,7 @@ describe('Metronome panel and stats', () => {
     rerender(<Harness sessions={[day(0)]} />);
     expect(screen.queryByText(/Nothing logged today/)).toBeNull();
     expect(screen.getByText('Ex 0')).toBeInTheDocument();
-    expect(screen.getByText(/E minor ·/)).toBeInTheDocument();
+    expect(within(document.querySelector('.recent') as HTMLElement).getByText(/E minor ·/)).toBeInTheDocument();
   });
   it('string names are all rendered', () => {
     render(<Harness />);

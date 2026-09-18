@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Choice, keyItems } from '@/components/app/fields';
+import { FiveBoxes } from '@/components/app/five-boxes';
 import { Fretboard } from '@/components/app/fretboard';
 import { MetronomePanel } from '@/components/app/metronome-panel';
 import { NoteQuiz, type QuizState } from '@/components/app/note-quiz';
@@ -133,6 +134,8 @@ export function JourneyTab({ view, audio, metronome, sessions, onLog, loaded, bu
           </section>
         </div>
       </div>
+
+      <FiveBoxes root={root} setRoot={setRoot} blues={blues} intervals={intervals} fretCount={fretCount} sounding={sounding} onPlay={play} />
     </>
   );
 }

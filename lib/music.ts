@@ -63,6 +63,56 @@ export function isScaleNote(string: number, fret: number, root: number, blues: b
   return scaleDegrees(blues).includes(degree(string, fret, root));
 }
 
+/* ------------------------------------------------------------------ */
+/* The five boxes as placed shapes (the "5 boxes" section)             */
+/* ------------------------------------------------------------------ */
+
+/**
+ * A register is a direction, not a fixed transposition: each shape moves by whole
+ * octaves as far as the register asks and the neck allows, and a shape with nowhere
+ * to go stays at its standard position — so every box is reachable in every key.
+ */
+export type Register = 'down' | 'standard' | 'up';
+
+export type BoxPlacement = { box: number; lo: number; hi: number; moved: boolean };
+
+/** Where `box` (0–4) sits for `root` in `register` on a neck of `maxFret` frets. */
+export function boxPlacement(root: number, box: number, register: Register, maxFret = 24): BoxPlacement {
+  const frets = SHAPES[box].flat(), lo = Math.min(...frets), hi = Math.max(...frets);
+  const fit = (r: number) => { while (r + hi > maxFret && r - 12 + lo >= 0) r -= 12; return r; };
+  // Standard puts the root on the low E string between frets 1 and 12.
+  const standard = fit(boxOffset(root) || 12);
+  let r = standard;
+  if (register === 'down') while (r - 12 + lo >= 0) r -= 12;
+  if (register === 'up') while (r + 12 + hi <= maxFret) r += 12;
+  return { box, lo: lo + r, hi: hi + r, moved: r !== standard };
+}
+
+/** All five boxes for this key and register, ordered by where they sit on the neck. */
+export function boxesLowToHigh(root: number, register: Register, maxFret = 24) {
+  return [0, 1, 2, 3, 4].map(b => boxPlacement(root, b, register, maxFret)).sort((a, b) => a.lo - b.lo);
+}
+
+const STRING_LABELS = ['high e', 'B', 'G', 'D', 'A', 'low E'];
+/** String indexes (0 = high e) that hold a root inside `box`; the same in every key. */
+export function boxRootStrings(box: number) {
+  return [5, 4, 3, 2, 1, 0].filter(s => SHAPES[box][5 - s].some(f => noteAt(s, f) === 4));
+}
+
+const BOX_CHARACTER = [
+  'Home base — most players learn this shape first.',
+  'The stretchy one.',
+  'Its top half is the B.B. box.',
+  'Box 1’s shape moved across one string set.',
+  'Closes the loop — its top edge is Box 1, an octave up.',
+];
+/** One-line practice tip for a box; the root strings are derived from the shape, not written by hand. */
+export function boxTip(box: number) {
+  const names = boxRootStrings(box).map(s => STRING_LABELS[s]);
+  const list = names.length > 1 ? `${names.slice(0, -1).join(', ')} and ${names.at(-1)}` : names[0];
+  return `${BOX_CHARACTER[box]} Roots on the ${list} strings.`;
+}
+
 export type FretRange = 'low' | 'high' | 'full';
 export function visibleFrets(range: FretRange, fretCount: number) {
   if (range === 'high') return Array.from({ length: fretCount - 11 }, (_, i) => i + 12);

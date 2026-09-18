@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.5.0 — the five boxes
+
+- New **The five boxes** section on the Fretboard Journey tab, ported from the Minor
+  Pentatonic Practice Desk: select any combination of boxes (buttons or cards), a whole-neck
+  map that dims everything outside the selection, and five playable cards laid out low to
+  high. Its key picker is shared with the main fretboard; Octave down / Standard / Octave up
+  registers move each box as far as the neck allows (22 or 24 frets).
+- Box tips name their root strings from the shape data rather than by hand, and a test
+  checks them in every key and register. (Box 2's roots are on the D and B strings and
+  Box 3's on the A and B strings — the practice desk's hand-written tips had these wrong.)
+
 ## 0.4.1 — dependency security updates
 
 - Patched every open Dependabot alert (js-yaml, browserslist, baseline-browser-mapping,

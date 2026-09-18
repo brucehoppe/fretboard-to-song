@@ -211,6 +211,27 @@ test('two tabs editing the same song: the second save is refused, edits kept', a
   await expect(page.getByPlaceholder(/chorus entry/)).toHaveValue('from tab 1');
 });
 
+test('five boxes: pick several boxes, change key from the section, hear a card note', async ({ page }) => {
+  const section = page.getByRole('region', { name: 'The five boxes' });
+  const label = section.locator('.map-label');
+  await expect(label).toHaveText('Full neck — all boxes');
+  await section.getByRole('button', { name: 'Box 1', exact: true }).click();
+  await section.getByRole('button', { name: 'Box 3', exact: true }).click();
+  await expect(label).toHaveText('Full neck — Boxes 1 + 3 selected');
+  await expect(section.getByRole('article', { name: 'Box 3' })).toHaveClass(/selected/);
+  expect(await section.getByRole('group', { name: 'Five boxes neck map' }).locator('.note.dimmed').count()).toBeGreaterThan(0);
+
+  await choose(page, 'Key', 'A minor', section);
+  await expect(page.locator('.board-caption')).toContainText('A minor');
+  await expect(section.getByRole('article', { name: 'Box 1' }).locator('.box-card-head')).toContainText('fret 5–8');
+
+  await section.getByRole('article', { name: 'Box 1' }).getByRole('button', { name: /^String E, fret 5,/ }).click();
+  expect((await freqs(page)).some(f => Math.abs(f - hz(45)) < 0.01)).toBe(true); // A2, low E fret 5
+  await expect(label).toHaveText('Full neck — Boxes 1 + 3 selected');
+  await section.getByRole('button', { name: 'Show all' }).click();
+  await expect(label).toHaveText('Full neck — all boxes');
+});
+
 test('API rejects cross-origin writes', async ({ request }) => {
   const r = await request.post('/api/practice', { headers: { origin: 'https://evil.example' }, data: { type: 'session', data: {} } });
   expect(r.status()).toBe(403);
