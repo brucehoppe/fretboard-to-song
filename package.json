@@ -82,5 +82,19 @@
     }
   },
   "packageManager": "pnpm@11.25.0",
-  "description": "Guitar practice app: learn the minor pentatonic across the whole neck, build licks, and finish complete songs."
+  "description": "Guitar practice app: learn the minor pentatonic across the whole neck, build licks, and finish complete songs.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/brucehoppe/fretboard-to-song.git"
+  },
+  "keywords": [
+    "guitar",
+    "music-education",
+    "pentatonic",
+    "react",
+    "typescript",
+    "cloudflare-workers",
+    "web-audio"
+  ]
 }

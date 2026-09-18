@@ -1,8 +1,36 @@
 # Fretboard to Song
 
-A personal guitar practice app for getting off the "box 1 rut": learn the minor pentatonic across the whole neck, turn it into licks you actually remember, and finish complete songs.
+[![CI](https://github.com/brucehoppe/fretboard-to-song/actions/workflows/ci.yml/badge.svg)](https://github.com/brucehoppe/fretboard-to-song/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178c6)
+![Tests](https://img.shields.io/badge/tests-344-brightgreen)
 
-Built with TypeScript, React 19 and [vinext](https://github.com/cloudflare/vinext) on Cloudflare Workers, with progress in Cloudflare D1. All sound is synthesised in the browser with Web Audio; no API keys, microphone or paid services.
+A guitar practice app for getting out of the "box 1 rut": learn the minor pentatonic across the whole neck, turn it into licks you remember, and finish complete songs.
+
+![Interactive fretboard showing A minor blues across all 24 frets](docs/screenshots/fretboard.png)
+
+## Highlights
+
+- **A tested music-theory core.** `lib/music.ts` is pure TypeScript with no framework. Its tests check every key, box shape, string and fret (0–24) against the theory, and every generated lick in every key on both 22- and 24-fret guitars.
+- **One source of truth for each phrase.** Tab, interval labels and audio are all generated from a single note list, so they can't drift apart. (An earlier version labelled four of six licks incorrectly for exactly that reason.)
+- **Web Audio synthesis with no samples.** Bends and slides are pitch automation on one oscillator, hammer-ons step the pitch, and the metronome uses a look-ahead scheduler so it stays in time when the main thread is busy.
+- **Safe concurrent edits.** Every record carries a revision number. A save from a stale browser tab is refused with a clear message, and your unsaved text is kept.
+- **Four layers of tests (344 in total).**
+  - Unit tests for the theory.
+  - API tests against real SQLite built from the real migrations.
+  - Component tests that click every control and record which pitches actually sound.
+  - Playwright tests in real browsers against the built Cloudflare Worker.
+  
+  The tests found real bugs, including one that crashed the local Workers runtime (see the [changelog](CHANGELOG.md)).
+- **Runs at the edge.** React 19 on Cloudflare Workers via vinext, with D1 (SQLite) for storage and zod validation on every write.
+
+| Song Finisher | Lick Development Lab |
+|---|---|
+| ![Song sections with tempo, confidence, transitions and readiness progress](docs/screenshots/song-finisher.png) | ![Lick lab showing a bend phrase with generated tab and interval path](docs/screenshots/lick-lab.png) |
+
+| Practice + note quiz | Mobile |
+|---|---|
+| ![Fretboard with quiz, metronome and practice streak](docs/screenshots/journey.png) | <img src="docs/screenshots/mobile.png" alt="Mobile layout" width="260"> |
 
 ## What it does
 
@@ -70,3 +98,7 @@ Hosting/starter details (Sites profiles, auth headers, D1 bindings) are in [docs
 This is a **single-owner** app: everyone who can reach the site shares one repertoire. Before sharing it, add per-user ownership (the starter's `getChatGPTUser()` provides a stable user id; add a `user_id` column and filter every query by it).
 
 Ideas on the roadmap are listed in [CHANGELOG.md](CHANGELOG.md#roadmap).
+
+## License and credits
+
+[MIT](LICENSE) © Bruce Hoppe. Built on the vinext starter, with UI primitives from [shadcn/ui](https://ui.shadcn.com) (MIT). Security reports: see [SECURITY.md](SECURITY.md).

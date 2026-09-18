@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.1 — portfolio polish
+- README with screenshots, badges and an engineering-highlights section; MIT license; `SECURITY.md`.
+- CI runs with a read-only token. Dependabot is configured for npm and GitHub Actions, with a 7-day cooldown that matches the pnpm release-age policy.
+- The hosting project ID is kept out of the repository (`.openai/hosting.json` is git-ignored; an example file is committed).
+- Fix: the Lick Lab's "Build it in three moves" steps are numbered again (a Tailwind reset had removed the numbers).
+
 ## 0.3.0 — test suite
 
 ### Test suite
