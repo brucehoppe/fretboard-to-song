@@ -63,3 +63,4 @@
 .tab-key{font-size:.75rem;margin-top:8px}
 @media(max-width:760px){.main-tabs{overflow-x:auto;justify-content:flex-start}.main-tabs [data-slot=tabs-trigger] svg{display:none}.main-tabs [data-slot=tabs-trigger]{padding:10px 8px!important;font-size:.8125rem}.quiz-answers{grid-template-columns:repeat(4,1fr)}.stats{flex-direction:column}}
 .idea-grid h4+ol,.idea-grid p+h4{margin-top:16px}
+.sign-in-gate{display:grid;place-items:center;min-height:100vh;padding:20px}.sign-in-card{width:100%;max-width:340px;display:flex;flex-direction:column;align-items:center;gap:14px;text-align:center;padding:32px 28px;background:#18202d;border:1px solid #344055;border-radius:14px}.sign-in-card h1{font-size:1.25rem}.sign-in-card p{font-size:.875rem;color:#8795ad}.sign-in-card input{width:100%;height:42px}.sign-in-card button{width:100%}.sign-in-error{color:#e5877c;font-size:.8125rem}

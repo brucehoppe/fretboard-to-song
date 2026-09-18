@@ -7,11 +7,12 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { JourneyTab } from '@/components/app/journey-tab';
 import { LicksTab } from '@/components/app/licks-tab';
+import { SignInGate } from '@/components/app/sign-in-gate';
 import { SongsTab } from '@/components/app/songs-tab';
 import { useAudio, useMetronome } from '@/hooks/use-audio';
 import { useFretboardView } from '@/hooks/use-fretboard-view';
 import { useWebMcp } from '@/hooks/use-webmcp';
-import { loadPractice, newId, post } from '@/lib/api';
+import { loadPractice, newId, post, signOut, UnauthorizedError } from '@/lib/api';
 import { rangeFor, type Lick, type Rating, type Session, type Song } from '@/lib/music';
 
 export default function Home() {
@@ -21,6 +22,7 @@ export default function Home() {
   const [licks, setLicks] = useState<Lick[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [error, setError] = useState('');
+  const [needsSignIn, setNeedsSignIn] = useState(false);
   const [busy, setBusy] = useState(false);
   const view = useFretboardView();
   const audio = useAudio();
@@ -29,16 +31,22 @@ export default function Home() {
   useWebMcp(view, showJourney);
 
   const load = useCallback(() => loadPractice().then(
-    data => { setSongs(data.songs); setSessions(data.sessions); setLicks(data.licks); setLoaded(true); },
-    (e: Error) => setError(e.message),
+    data => { setSongs(data.songs); setSessions(data.sessions); setLicks(data.licks); setLoaded(true); setNeedsSignIn(false); },
+    (e: Error) => { if (e instanceof UnauthorizedError) setNeedsSignIn(true); else setError(e.message); },
   ), []);
   useEffect(() => { void load(); }, [load]);
+
+  if (needsSignIn) return <SignInGate onSignedIn={() => void load()} />;
 
   /** Runs a server write with a shared busy flag and toast feedback. */
   async function write<T>(fn: () => Promise<T>, success?: string): Promise<T | null> {
     setBusy(true);
     try { const r = await fn(); if (success) toast.success(success); return r; }
-    catch (e) { toast.error((e as Error).message); return null; }
+    catch (e) {
+      if (e instanceof UnauthorizedError) { setNeedsSignIn(true); return null; }
+      toast.error((e as Error).message);
+      return null;
+    }
     finally { setBusy(false); }
   }
 
@@ -82,6 +90,7 @@ export default function Home() {
       <header className="topbar">
         <Link className="brand" href="/"><span className="brand-icon"><Music2 size={23} /></span><span>Fretboard <em>to</em> Song</span></Link>
         <span className="edition">YOUR PRACTICE STUDIO</span>
+        <Button variant="outline" size="sm" onClick={() => { void signOut().then(() => setNeedsSignIn(true)); }}>Sign out</Button>
       </header>
       <main>
         <Tabs value={tab} onValueChange={setTab}>

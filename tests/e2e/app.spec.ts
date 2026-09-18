@@ -5,8 +5,12 @@ import { expect, test, type Page } from '@playwright/test';
  * Web Audio is wrapped (not replaced) so tests can read which pitches were scheduled.
  */
 const NOTES = ['C', 'C♯', 'D', 'E♭', 'E', 'F', 'F♯', 'G', 'A♭', 'A', 'B♭', 'B'];
+// Must match tests/e2e/serve.mjs, which serves the Worker with these as --var.
+const PASSPHRASE = 'e2e-test-passphrase';
 
 test.beforeEach(async ({ page }) => {
+  // Sign in first so every scenario below sees the app, not the passphrase gate.
+  await page.request.post('/api/auth', { data: { passphrase: PASSPHRASE } });
   await page.addInitScript(() => {
     const w = window as unknown as { __freqs: number[]; __errors: string[] };
     w.__freqs = []; w.__errors = [];
@@ -210,6 +214,23 @@ test('two tabs editing the same song: the second save is refused, edits kept', a
 test('API rejects cross-origin writes', async ({ request }) => {
   const r = await request.post('/api/practice', { headers: { origin: 'https://evil.example' }, data: { type: 'session', data: {} } });
   expect(r.status()).toBe(403);
+});
+
+test('API rejects reads and writes without a signed-in session', async ({ request }) => {
+  expect((await request.get('/api/practice', { headers: { cookie: '' } })).status()).toBe(401);
+  expect((await request.post('/api/practice', { headers: { cookie: '' }, data: { type: 'session', data: {} } })).status()).toBe(401);
+});
+
+test('sign-in gate: wrong passphrase shows an error, correct passphrase unlocks the app', async ({ page, context }) => {
+  await context.clearCookies();
+  await page.goto('/');
+  await expect(page.getByPlaceholder('Passphrase')).toBeVisible();
+  await page.getByPlaceholder('Passphrase').fill('not-it');
+  await page.getByRole('button', { name: 'Sign in' }).click();
+  await expect(page.getByRole('alert')).toContainText('Incorrect passphrase');
+  await page.getByPlaceholder('Passphrase').fill(PASSPHRASE);
+  await page.getByRole('button', { name: 'Sign in' }).click();
+  await expect(page.getByRole('tab', { name: 'Fretboard Journey' })).toBeVisible();
 });
 
 test('mobile layout fits the screen @mobile', async ({ page }) => {

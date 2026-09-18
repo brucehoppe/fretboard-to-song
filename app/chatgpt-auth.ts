@@ -1,6 +1,21 @@
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
+/*
+ * Starter-template helper. Not currently called anywhere in this app — the
+ * passphrase gate in app/api/auth/route.ts and lib/session.ts is the real
+ * access boundary (see /api/practice).
+ *
+ * SECURITY: getChatGPTUser() trusts the oai-authenticated-user-* headers
+ * outright, with no signature check. That is safe ONLY when every request is
+ * guaranteed to pass through OpenAI's Sites dispatch proxy, which strips and
+ * re-injects these headers. If this Worker is ever reachable directly (e.g.
+ * its own *.workers.dev route is left enabled), any client can set these
+ * headers itself and impersonate any user id. Before wiring this into real
+ * per-user logic, disable the direct Worker route or verify a proxy-shared
+ * secret alongside the headers.
+ */
+
 export type ChatGPTUser = {
   userId: string;
   displayName: string;

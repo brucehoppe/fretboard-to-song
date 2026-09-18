@@ -1,5 +1,6 @@
 import { z } from 'zod';
-import { database } from '@/lib/database';
+import { database, env } from '@/lib/database';
+import { readCookie, SESSION_COOKIE, verifySessionToken } from '@/lib/session';
 
 /*
  * Single-owner practice API. Records are stored as validated JSON blobs in D1,
@@ -16,16 +17,26 @@ const byId = z.object({ id: uuid });
 
 const SESSION_HISTORY = 200; // enough for streaks and weekly counts
 const MAX_BODY = 25_000;
+const MAX_ROWS = 5_000; // defensive ceiling; this is a single-owner app, not a multi-tenant store
 
 const json = (body: unknown, status = 200) => Response.json(body, { status, headers: { 'Cache-Control': 'no-store' } });
 
-export async function GET() {
+/** Every request must carry a valid signed session cookie; this is the whole access boundary. */
+async function authorized(req: Request) {
+  const secret = env.AUTH_SECRET;
+  if (!secret) return false; // fail closed if the deployment forgot to set the secret
+  return verifySessionToken(secret, readCookie(req, SESSION_COOKIE));
+}
+
+export async function GET(req: Request) {
+  if (!(await authorized(req))) return json({ error: 'Sign in required.' }, 401);
   try {
     const db = database();
     const [s, h, l] = await Promise.all([
-      db.prepare('SELECT data, revision FROM songs ORDER BY updated_at DESC').all<{ data: string; revision: number }>(),
-      db.prepare('SELECT data FROM sessions ORDER BY created_at DESC LIMIT ?').bind(SESSION_HISTORY).all<{ data: string }>(),
-      db.prepare('SELECT data, revision FROM licks ORDER BY updated_at DESC').all<{ data: string; revision: number }>(),
+      // rowid tie-breaks same-millisecond timestamps deterministically, in insertion order.
+      db.prepare('SELECT data, revision FROM songs ORDER BY updated_at DESC, rowid DESC LIMIT ?').bind(MAX_ROWS).all<{ data: string; revision: number }>(),
+      db.prepare('SELECT data FROM sessions ORDER BY created_at DESC, rowid DESC LIMIT ?').bind(SESSION_HISTORY).all<{ data: string }>(),
+      db.prepare('SELECT data, revision FROM licks ORDER BY updated_at DESC, rowid DESC LIMIT ?').bind(MAX_ROWS).all<{ data: string; revision: number }>(),
     ]);
     return json({
       songs: s.results.map(r => ({ ...JSON.parse(r.data), revision: r.revision })),
@@ -65,6 +76,7 @@ export async function POST(req: Request) {
     const origin = req.headers.get('origin');
     if (origin && new URL(origin).host !== new URL(req.url).host) return json({ error: 'Invalid origin' }, 403);
     if (raw.length > MAX_BODY) return json({ error: 'Entry too large' }, 413);
+    if (!(await authorized(req))) return json({ error: 'Sign in required.' }, 401);
     const body = JSON.parse(raw) as { type?: string; data?: unknown };
     const db = database();
 
@@ -81,7 +93,9 @@ export async function POST(req: Request) {
       }
       case 'session': {
         const s = session.parse(body.data);
-        await db.prepare('INSERT OR IGNORE INTO sessions (id, data, created_at) VALUES (?, ?, ?)').bind(s.id, JSON.stringify(s), s.date).run();
+        // created_at drives the LIMIT-based history window, so it must be server time —
+        // s.date (client-supplied) is kept only inside the stored blob for display.
+        await db.prepare('INSERT OR IGNORE INTO sessions (id, data, created_at) VALUES (?, ?, ?)').bind(s.id, JSON.stringify(s), new Date().toISOString()).run();
         return json({ ok: true });
       }
       case 'delete-song': {

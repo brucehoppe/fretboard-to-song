@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.4.0 — security hardening
+
+- **Passphrase sign-in.** `/api/practice` (read and write, including delete) previously had
+  no access control at all — anyone who found the URL could read, spam, or permanently
+  delete the owner's data. It's now gated by a shared passphrase and a signed (HMAC-SHA256),
+  HttpOnly session cookie; the API fails closed if the secrets aren't configured. See
+  "Passphrase sign-in" in the README.
+- Logged practice sessions used the client-supplied date as the server sort key, so a
+  spoofed future-dated session could permanently push real history out of the
+  last-200-sessions window. `created_at` is now always server time; the client's date is
+  kept only for display.
+- Defensive row-count ceilings on the songs/licks queries; deterministic tie-breaking
+  (`rowid`) when timestamps collide.
+- Per-request Content-Security-Policy with a fresh script nonce (`proxy.ts`), plus
+  `X-Content-Type-Options`, `X-Frame-Options`, and `Referrer-Policy` on API responses.
+- CI Actions are now pinned to commit SHAs instead of floating tags; checkout no longer
+  persists the token in `.git/config`, and jobs have a 20-minute timeout.
+- `app/chatgpt-auth.ts` (unused starter helper) now carries a warning: it trusts request
+  headers that are only safe behind OpenAI's Sites dispatch proxy.
+
 ## 0.3.1 — portfolio polish
 - README with screenshots, badges and an engineering-highlights section; MIT license; `SECURITY.md`.
 - CI runs with a read-only token. Dependabot is configured for npm and GitHub Actions, with a 7-day cooldown that matches the pnpm release-age policy.

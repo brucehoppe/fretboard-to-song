@@ -2,17 +2,39 @@ import { render, screen, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import Home from '@/app/page';
 import { GET, POST } from '@/app/api/practice/route';
+import { POST as authPOST, DELETE as authDELETE } from '@/app/api/auth/route';
 import { env } from '../helpers/cloudflare-workers';
 import { createFakeD1 } from '../helpers/fake-d1';
 import { choose, selected, setup, type User } from '../helpers/ui';
 
-/** Route the app's fetch calls to the real API handlers backed by SQLite. */
+const AUTH_SECRET = 'test-auth-secret';
+const PASSPHRASE = 'test-passphrase';
+
+/**
+ * Route the app's fetch calls to the real API handlers backed by SQLite, with a tiny
+ * in-memory cookie jar so the real passphrase gate (app/api/auth) is exercised too.
+ * Starts pre-authenticated so existing scenarios below still open straight into the app;
+ * `signOutFetch`/re-login is exercised by the dedicated "sign-in gate" tests.
+ */
 let sqlite: ReturnType<typeof createFakeD1>['sqlite'];
-beforeEach(() => {
+let cookieJar: string;
+beforeEach(async () => {
   const f = createFakeD1(); env.DB = f.d1; sqlite = f.sqlite;
+  env.AUTH_SECRET = AUTH_SECRET;
+  env.PRACTICE_PASSPHRASE = PASSPHRASE;
+  const { createSessionToken } = await import('@/lib/session');
+  cookieJar = `session=${await createSessionToken(AUTH_SECRET)}`;
   vi.stubGlobal('fetch', vi.fn(async (url: string, init?: RequestInit) => {
-    const req = new Request(new URL(url, 'https://fts.test'), init);
-    return req.method === 'POST' ? POST(req) : GET();
+    const target = new URL(url, 'https://fts.test');
+    const headers = new Headers(init?.headers);
+    if (cookieJar) headers.set('cookie', cookieJar);
+    const req = new Request(target, { ...init, headers });
+    const res = target.pathname === '/api/auth'
+      ? await (req.method === 'DELETE' ? authDELETE() : authPOST(req))
+      : await (req.method === 'POST' ? POST(req) : GET(req));
+    const setCookie = res.headers.get('set-cookie');
+    if (setCookie) cookieJar = setCookie.startsWith('session=;') ? '' : setCookie.split(';')[0];
+    return res;
   }));
   vi.spyOn(window, 'confirm').mockReturnValue(true);
   vi.spyOn(console, 'error').mockImplementation(() => {});
@@ -62,6 +84,40 @@ describe('App shell', () => {
       expect(screen.getByRole('tab', { name })).toHaveAttribute('aria-selected', 'true');
       expect(within(panel(name)).getByRole('heading', { level: 1, name: heading })).toBeInTheDocument();
     }
+  });
+});
+
+describe('Sign-in gate', () => {
+  it('shows the passphrase form instead of the app when not signed in', async () => {
+    cookieJar = '';
+    render(<Home />);
+    expect(await screen.findByPlaceholderText('Passphrase')).toBeInTheDocument();
+    expect(screen.queryByRole('tab', { name: 'Fretboard Journey' })).toBeNull();
+  });
+  it('shows an error on the wrong passphrase and unlocks the app on the right one', async () => {
+    cookieJar = '';
+    const user = setup();
+    render(<Home />);
+    const input = await screen.findByPlaceholderText('Passphrase');
+    await user.type(input, 'wrong');
+    await user.click(screen.getByRole('button', { name: 'Sign in' }));
+    expect(await screen.findByRole('alert')).toHaveTextContent('Incorrect passphrase');
+    await user.clear(input);
+    await user.type(input, PASSPHRASE);
+    await user.click(screen.getByRole('button', { name: 'Sign in' }));
+    expect(await screen.findByRole('tab', { name: 'Fretboard Journey' })).toBeInTheDocument();
+  });
+  it('sign out returns to the passphrase gate', async () => {
+    const { user } = await openApp();
+    await user.click(screen.getByRole('button', { name: 'Sign out' }));
+    expect(await screen.findByPlaceholderText('Passphrase')).toBeInTheDocument();
+  });
+  it('a write that finds the session expired mid-use shows the gate instead of a generic error', async () => {
+    const { user } = await openApp();
+    cookieJar = ''; // simulate the cookie expiring server-side between actions
+    await choose(user, 'How did it feel?', 'Comfortable');
+    await user.click(screen.getByRole('button', { name: 'Log practice' }));
+    expect(await screen.findByPlaceholderText('Passphrase')).toBeInTheDocument();
   });
 });
 

@@ -3,11 +3,16 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { env } from '../helpers/cloudflare-workers';
 import { createFakeD1 } from '../helpers/fake-d1';
 import { GET, POST } from '@/app/api/practice/route';
+import { createSessionToken, SESSION_COOKIE } from '@/lib/session';
 
 const URL_ = 'https://fts.example/api/practice';
+const AUTH_SECRET = 'test-auth-secret';
+let cookie: string; // valid session cookie for the currently-configured AUTH_SECRET
+
 const send = (type: string, data: unknown, headers: Record<string, string> = {}) =>
-  POST(new Request(URL_, { method: 'POST', headers: { 'content-type': 'application/json', ...headers }, body: JSON.stringify({ type, data }) }));
-const load = async () => (await GET()).json() as Promise<{ songs: any[]; sessions: any[]; licks: any[] }>;
+  POST(new Request(URL_, { method: 'POST', headers: { 'content-type': 'application/json', cookie, ...headers }, body: JSON.stringify({ type, data }) }));
+const get = (headers: Record<string, string> = {}) => GET(new Request(URL_, { headers: { cookie, ...headers } }));
+const load = async () => (await get()).json() as Promise<{ songs: any[]; sessions: any[]; licks: any[] }>;
 const body = async (r: Response) => ({ status: r.status, ...(await r.json() as Record<string, unknown>) }) as { status: number; error?: string; revision?: number; ok?: boolean };
 
 const song = (o: Record<string, unknown> = {}) => ({
@@ -20,7 +25,12 @@ const lick = (o: Record<string, unknown> = {}) => ({
 const session = (o: Record<string, unknown> = {}) => ({ id: randomUUID(), exercise: 'Note quiz', key: 4, rating: 'Comfortable', date: new Date().toISOString(), ...o });
 
 let sqlite: ReturnType<typeof createFakeD1>['sqlite'];
-beforeEach(() => { const f = createFakeD1(); env.DB = f.d1; sqlite = f.sqlite; vi.spyOn(console, 'error').mockImplementation(() => {}); });
+beforeEach(async () => {
+  const f = createFakeD1(); env.DB = f.d1; sqlite = f.sqlite;
+  env.AUTH_SECRET = AUTH_SECRET;
+  cookie = `${SESSION_COOKIE}=${await createSessionToken(AUTH_SECRET)}`;
+  vi.spyOn(console, 'error').mockImplementation(() => {});
+});
 
 describe('migrations', () => {
   it('create all three tables (licks was previously missing)', () => {
@@ -35,7 +45,7 @@ describe('migrations', () => {
 
 describe('GET', () => {
   it('returns empty lists on a fresh database, uncached', async () => {
-    const r = await GET();
+    const r = await get();
     expect(r.status).toBe(200);
     expect(r.headers.get('cache-control')).toBe('no-store');
     expect(await r.json()).toEqual({ songs: [], sessions: [], licks: [] });
@@ -56,7 +66,7 @@ describe('GET', () => {
   });
   it('returns 503 when the database is missing', async () => {
     env.DB = undefined;
-    expect(await body(await GET())).toMatchObject({ status: 503, error: expect.stringContaining('unavailable') });
+    expect(await body(await get())).toMatchObject({ status: 503, error: expect.stringContaining('unavailable') });
   });
 });
 
@@ -177,6 +187,37 @@ describe('sessions', () => {
     ['empty exercise', { exercise: '' }],
     ['exercise too long', { exercise: 'x'.repeat(121) }],
   ])('rejects %s', async (_, o) => expect((await send('session', session(o))).status).toBe(400));
+  it('a spoofed future client date cannot push real sessions out of the history window (H2 regression)', async () => {
+    await send('session', session({ exercise: 'real practice' }));
+    await send('session', session({ exercise: 'spoofed', date: '3000-01-01T00:00:00.000Z' }));
+    const sessions = (await load()).sessions;
+    // Whichever was written second sorts first — server insertion order, not the client-supplied date.
+    expect(sessions.map((s: any) => s.exercise)).toEqual(['spoofed', 'real practice']);
+  });
+});
+
+describe('auth', () => {
+  it('GET without a session cookie is rejected', async () => {
+    expect((await get({ cookie: '' })).status).toBe(401);
+  });
+  it('POST without a session cookie is rejected', async () => {
+    expect((await send('session', session(), { cookie: '' })).status).toBe(401);
+  });
+  it('a garbage or tampered cookie is rejected', async () => {
+    expect((await get({ cookie: `${SESSION_COOKIE}=not-a-valid-token` })).status).toBe(401);
+  });
+  it('an expired session token is rejected', async () => {
+    const expired = `${Date.now() - 1000}.deadbeef`;
+    expect((await get({ cookie: `${SESSION_COOKIE}=${expired}` })).status).toBe(401);
+  });
+  it('a token signed with a different secret is rejected', async () => {
+    const other = `${SESSION_COOKIE}=${await createSessionToken('some-other-secret')}`;
+    expect((await get({ cookie: other })).status).toBe(401);
+  });
+  it('fails closed when AUTH_SECRET is not configured', async () => {
+    env.AUTH_SECRET = undefined;
+    expect((await get({ cookie })).status).toBe(401);
+  });
 });
 
 describe('request hygiene', () => {
@@ -200,7 +241,7 @@ describe('request hygiene', () => {
     expect((await send('lick', lick({ notes: 'x'.repeat(30000) }))).status).toBe(413);
   });
   it('rejects malformed JSON and unknown actions', async () => {
-    expect((await POST(new Request(URL_, { method: 'POST', body: '{nope' }))).status).toBe(400);
+    expect((await POST(new Request(URL_, { method: 'POST', headers: { cookie }, body: '{nope' }))).status).toBe(400);
     expect(await body(await send('explode', {}))).toMatchObject({ status: 400, error: 'Unknown action' });
     expect((await send('delete-song', { id: 'not-a-uuid' })).status).toBe(400);
   });

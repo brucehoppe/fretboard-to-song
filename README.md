@@ -3,7 +3,7 @@
 [![CI](https://github.com/brucehoppe/fretboard-to-song/actions/workflows/ci.yml/badge.svg)](https://github.com/brucehoppe/fretboard-to-song/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 ![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178c6)
-![Tests](https://img.shields.io/badge/tests-344-brightgreen)
+![Tests](https://img.shields.io/badge/tests-364-brightgreen)
 
 A guitar practice app for getting out of the "box 1 rut": learn the minor pentatonic across the whole neck, turn it into licks you remember, and finish complete songs.
 
@@ -60,16 +60,37 @@ pnpm dev        # dev server with HMR (http://localhost:5173)
 pnpm start      # or: run the built Worker locally
 ```
 
+### Passphrase sign-in
+
+`/api/practice` (every read and write, including delete) is gated by a shared passphrase and
+a signed session cookie — there is no per-request access without it. Set two secrets before
+running locally or deploying; without both, the API fails closed (401 on every request):
+
+```sh
+# Local dev (pnpm dev / pnpm start): create .dev.vars at the repo root — it's git-ignored.
+cat > .dev.vars <<'EOF'
+PRACTICE_PASSPHRASE=choose-your-own-passphrase
+AUTH_SECRET=some-long-random-string
+EOF
+
+# Production (Cloudflare Worker):
+wrangler secret put PRACTICE_PASSPHRASE
+wrangler secret put AUTH_SECRET
+```
+
+`AUTH_SECRET` signs the session cookie (HMAC-SHA256) and should be a long random value you
+generate once, e.g. `openssl rand -base64 32`. Rotating it invalidates all existing sessions.
+
 ## Testing
 
-344 automated tests across four layers (333 Vitest + 11 Playwright flows). CI runs all of them on every push (`.github/workflows/ci.yml`).
+364 automated tests across four layers (351 Vitest + 13 Playwright flows). CI runs all of them on every push (`.github/workflows/ci.yml`).
 
 | Command | What it covers |
 |---|---|
 | `pnpm test:unit` | Music theory, exhaustively: every key × box × string × fret 0–24, blue-note placement, every Lick Lab move × ending × key × 22/24 frets, tab rendering, quiz pools, streaks. Also the API client. |
-| `pnpm test:api` | The real `/api/practice` route against SQLite built from the real `drizzle/` migrations: every action, every validation rule, revision conflicts, deletes, origin/size checks, SQL-injection safety. |
-| `pnpm test:components` | Every control in jsdom with the real components: each dropdown option, switch, button and field in all three tabs; audio verified by recording the pitches scheduled. Includes whole-app tests where `fetch` hits the real API + SQLite (load errors, retry, reload persistence, conflicts, navigation). |
-| `pnpm test:e2e` | Real Chromium (desktop and a Pixel 7) against the built Worker with a fresh local D1: every key/box/range/guitar, all exercises, a full quiz round, metronome timing, every lick move, the song workflow, a two-tab conflict, and no sideways scrolling on mobile. Requires `pnpm build` first. |
+| `pnpm test:api` | The real `/api/practice` and `/api/auth` routes against SQLite built from the real `drizzle/` migrations: every action, every validation rule, revision conflicts, deletes, origin/size checks, SQL-injection safety, and the passphrase/session-cookie gate (missing/garbage/expired/wrong-secret tokens, fail-closed when unconfigured). |
+| `pnpm test:components` | Every control in jsdom with the real components: each dropdown option, switch, button and field in all three tabs; audio verified by recording the pitches scheduled. Includes whole-app tests where `fetch` hits the real API + SQLite (load errors, retry, reload persistence, conflicts, navigation, the sign-in gate and sign-out). |
+| `pnpm test:e2e` | Real Chromium (desktop and a Pixel 7) against the built Worker with a fresh local D1: every key/box/range/guitar, all exercises, a full quiz round, metronome timing, every lick move, the song workflow, a two-tab conflict, the passphrase sign-in flow, and no sideways scrolling on mobile. Requires `pnpm build` first. |
 | `pnpm test` | Unit + API + components |
 | `pnpm test:coverage` | Same, with coverage thresholds enforced (currently ~98% statements, ~96% branches) |
 | `pnpm test:all` | Typecheck, lint, coverage, build, e2e — what CI runs |
@@ -87,15 +108,24 @@ Hosting/starter details (Sites profiles, auth headers, D1 bindings) are in [docs
 | `lib/music.ts` | Pure music theory: pitches, box shapes, blue note, phrase → tab/intervals, lick lab, quiz, practice stats |
 | `tests/` | `unit/`, `api/`, `components/`, `e2e/` and shared `helpers/` (see Testing) |
 | `app/page.tsx` | App shell: data loading, server writes, tab routing |
-| `components/app/` | `journey-tab`, `fretboard`, `note-quiz`, `metronome-panel`, `licks-tab`, `lick-lab`, `songs-tab`, shared `fields` |
+| `components/app/` | `journey-tab`, `fretboard`, `note-quiz`, `metronome-panel`, `licks-tab`, `lick-lab`, `songs-tab`, `sign-in-gate`, shared `fields` |
 | `hooks/` | `use-audio` (synth, phrase playback, metronome), `use-fretboard-view` (remembered view settings), `use-stored-state`, `use-unsaved-warning`, `use-webmcp` |
-| `lib/api.ts` | Client for `/api/practice` |
-| `app/api/practice/route.ts` | Validated persistence with optimistic revision checks |
+| `lib/api.ts` | Client for `/api/practice` and `/api/auth` |
+| `lib/session.ts` | Signed session cookie (HMAC-SHA256) for the passphrase gate |
+| `app/api/practice/route.ts` | Validated, passphrase-gated persistence with optimistic revision checks |
+| `app/api/auth/route.ts` | Passphrase check; sets/clears the session cookie |
+| `proxy.ts` | Per-request Content-Security-Policy with a fresh script nonce |
 | `db/schema.ts`, `drizzle/` | Schema and migrations |
 
 ## Limits and next steps
 
-This is a **single-owner** app: everyone who can reach the site shares one repertoire. Before sharing it, add per-user ownership (the starter's `getChatGPTUser()` provides a stable user id; add a `user_id` column and filter every query by it).
+This is a **single-owner** app: everyone who signs in with the shared passphrase (see
+"Passphrase sign-in" above) shares one repertoire — there's no per-user data separation.
+Before turning this into a multi-user app, add per-user ownership: the starter's
+`getChatGPTUser()` (`app/chatgpt-auth.ts`) provides a stable user id you could add as a
+`user_id` column and filter every query by, but read the warning comment at the top of
+that file first — it trusts request headers that are only safe behind OpenAI's Sites
+dispatch proxy, not if this Worker is ever reachable directly.
 
 Ideas on the roadmap are listed in [CHANGELOG.md](CHANGELOG.md#roadmap).
 
