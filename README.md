@@ -3,7 +3,7 @@
 [![CI](https://github.com/brucehoppe/fretboard-to-song/actions/workflows/ci.yml/badge.svg)](https://github.com/brucehoppe/fretboard-to-song/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 ![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178c6)
-![Tests](https://img.shields.io/badge/tests-381-brightgreen)
+![Tests](https://img.shields.io/badge/tests-382-brightgreen)
 
 A guitar practice app for getting out of the "box 1 rut": learn the minor pentatonic across the whole neck, turn it into licks you remember, and finish complete songs.
 
@@ -15,7 +15,7 @@ A guitar practice app for getting out of the "box 1 rut": learn the minor pentat
 - **One source of truth for each phrase.** Tab, interval labels and audio are all generated from a single note list, so they can't drift apart. (An earlier version labelled four of six licks incorrectly for exactly that reason.)
 - **Web Audio synthesis with no samples.** Bends and slides are pitch automation on one oscillator, hammer-ons step the pitch, and the metronome uses a look-ahead scheduler so it stays in time when the main thread is busy.
 - **Safe concurrent edits.** Every record carries a revision number. A save from a stale browser tab is refused with a clear message, and your unsaved text is kept.
-- **Four layers of tests (381 in total).**
+- **Four layers of tests (382 in total).**
   - Unit tests for the theory.
   - API tests against real SQLite built from the real migrations.
   - Component tests that click every control and record which pitches actually sound.
@@ -85,7 +85,7 @@ generate once, e.g. `openssl rand -base64 32`. Rotating it invalidates all exist
 
 ## Testing
 
-381 automated tests across four layers (367 Vitest + 14 Playwright flows). CI runs all of them on every push (`.github/workflows/ci.yml`).
+382 automated tests across four layers (367 Vitest + 15 Playwright flows). CI runs all of them on every push (`.github/workflows/ci.yml`).
 
 | Command | What it covers |
 |---|---|

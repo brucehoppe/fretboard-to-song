@@ -232,6 +232,14 @@ test('five boxes: pick several boxes, change key from the section, hear a card n
   await expect(label).toHaveText('Full neck — all boxes');
 });
 
+test('the page itself is served with security headers', async ({ request }) => {
+  const h = (await request.get('/')).headers();
+  expect(h['x-frame-options']).toBe('DENY');
+  expect(h['x-content-type-options']).toBe('nosniff');
+  expect(h['referrer-policy']).toBe('same-origin');
+  expect(h['content-security-policy']).toMatch(/script-src 'self' 'nonce-[^']+'.*frame-ancestors 'none'/);
+});
+
 test('API rejects cross-origin writes', async ({ request }) => {
   const r = await request.post('/api/practice', { headers: { origin: 'https://evil.example' }, data: { type: 'session', data: {} } });
   expect(r.status()).toBe(403);

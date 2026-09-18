@@ -17,6 +17,10 @@
   something they draw changes. Later note taps respond in ~16 ms; the first tap (~145 ms at
   4× throttle) is the browser creating its audio engine, kept lazy so no audio thread runs
   for visitors who never play a note.
+- The page itself now gets `X-Frame-Options`, `X-Content-Type-Options` and
+  `Referrer-Policy` (set in `proxy.ts`); `next.config.ts` headers only reached API responses
+  under vinext. An e2e test checks them.
+- `package.json` version brought in line with the changelog (was still 0.2.0).
 
 ## 0.4.1 — dependency security updates
 
