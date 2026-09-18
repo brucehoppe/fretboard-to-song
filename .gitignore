@@ -51,3 +51,6 @@ next-env.d.ts
 /coverage/
 /playwright-report/
 /test-results/
+
+# Hosting project settings (contains your deployment project ID). Copy from hosting.example.json.
+/.openai/hosting.json

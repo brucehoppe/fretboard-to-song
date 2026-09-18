@@ -14,6 +14,8 @@ Built with TypeScript, React 19 and [vinext](https://github.com/cloudflare/vinex
 
 ## Run locally
 
+`.openai/hosting.json` holds your hosting project ID and is deliberately not committed. To deploy from a fresh clone, run `cp .openai/hosting.example.json .openai/hosting.json` and fill in `project_id`. Local development, tests and CI work without it.
+
 Requires Node.js 22.13+ and pnpm (version pinned in `package.json`).
 
 ```sh
