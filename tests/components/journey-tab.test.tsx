@@ -184,11 +184,13 @@ describe('Practice modes', () => {
     render(<Harness onLog={onLog} />);
     await choose(user, 'Key', 'A minor', board());
     await user.click(screen.getByRole('tab', { name: 'Note quiz' }));
+    // Scoped to the quiz panel: whole-page role queries get slow as the tab grows.
+    const quizPanel = document.querySelector('.challenge') as HTMLElement;
     for (let i = 0; i < 10; i++) {
-      await user.click(screen.getAllByRole('button', { name: 'C♯' })[0]);
-      await user.click(screen.getByRole('button', { name: /Next note|See result/ }));
+      await user.click(within(quizPanel).getAllByRole('button', { name: 'C♯' })[0]);
+      await user.click(within(quizPanel).getByRole('button', { name: /Next note|See result/ }));
     }
-    await user.click(screen.getByRole('button', { name: 'Log result' }));
+    await user.click(within(quizPanel).getByRole('button', { name: 'Log result' }));
     expect(onLog).toHaveBeenCalledWith('Note quiz · 0/10', 9, 'Needs work');
   }, 20_000);
 });

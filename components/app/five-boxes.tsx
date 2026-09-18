@@ -1,5 +1,5 @@
 'use client';
-import { useMemo, useState } from 'react';
+import { memo, useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Choice, keyItems } from '@/components/app/fields';
 import { Fretboard } from '@/components/app/fretboard';
@@ -8,7 +8,9 @@ import { NOTES, boxTip, boxesLowToHigh, type Register } from '@/lib/music';
 const REGISTERS: [Register, string][] = [['down', 'Octave down'], ['standard', 'Standard'], ['up', 'Octave up']];
 const range = (lo: number, hi: number) => Array.from({ length: hi - lo + 1 }, (_, i) => lo + i);
 
-export function FiveBoxes({ root, setRoot, blues, intervals, fretCount, sounding, onPlay }: {
+// Memoised: the section is ~300 note buttons and depends on none of the Journey tab's
+// exercise or quiz state, so it should not re-render on every quiz step.
+export const FiveBoxes = memo(function FiveBoxes({ root, setRoot, blues, intervals, fretCount, sounding, onPlay }: {
   root: number; setRoot: (root: number) => void; blues: boolean; intervals: boolean; fretCount: number;
   sounding: string; onPlay: (string: number, fret: number) => void;
 }) {
@@ -80,4 +82,4 @@ export function FiveBoxes({ root, setRoot, blues, intervals, fretCount, sounding
       </div>
     </section>
   );
-}
+});
